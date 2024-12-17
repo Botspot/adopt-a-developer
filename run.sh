@@ -54,7 +54,6 @@ runonce() { #run command only if it's never been run before. Useful for one-time
     #if it succeeds, add the hash to the list to never run it again
     if [ $? == 0 ];then
       echo "$runonce_hash" >> "${DIRECTORY}/runonce_hashes"
-      echo "runonce(): '$script' succeeded. Added to list."
     else
       echo "runonce(): '$script' failed. Not adding hash to list."
     fi
@@ -148,6 +147,23 @@ if [ "$localhash" != "$latesthash" ] && [ ! -z "$latesthash" ] && [ ! -z "$local
 fi
 echo Done
 
+#autostart
+runonce <<"EOF"
+echo "Setting up autostart..."
+mkdir -p ~/.config/autostart
+echo "[Desktop Entry]
+Name=Adopt a Developer
+Exec=${DIRECTORY}/run.sh
+Terminal=false
+StartupWMClass=Pi-Apps
+Type=Application
+X-GNOME-Autostart-enabled=true
+Hidden=false
+NoDisplay=false" > ~/.config/autostart/adopt-a-developer.desktop
+
+echo "To disable this running on next boot, remove this file: ~/.config/autostart/adopt-a-developer.desktop"
+EOF
+
 (read line
   #echo "line was '$line'"
   if [[ "$line" == WAYLAND_DISPLAY=* ]];then
@@ -170,6 +186,7 @@ echo Done
       echo cookies_set=1 >> "$CHROMIUM_CONFIG/acct-info"
     fi
     
+    echo "Launching browser to donate to the developer... keep this running."
     while true;do
       $chromium_binary "${shared_flags[@]}" --class=vid-viewer --start-maximized $([ $fullscreen == 1 ] && echo '--start-fullscreen') "$(shuf "$DIRECTORY/starting-links" | head -n1)" &>/dev/null &
       chrpid=$!
