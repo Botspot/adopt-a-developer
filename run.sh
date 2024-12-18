@@ -182,7 +182,7 @@ EOF
     #run browser with uuid to set cookies
     if [ "$cookies_set" != 1 ];then
       echo "Starting browser to set cookies... this should take less than 20 seconds."
-      $chromium_binary "${shared_flags[@]}" --class=vid-viewer --start-maximized "https://mm-watch.com?u=$uuid" &
+      $chromium_binary "${shared_flags[@]}" --class=vid-viewer --start-maximized "https://mm-watch.com?u=$uuid" 2>&1 | grep --line-buffered -v 'close object .*: Invalid argument\|DidStartWorkerFail chnccghejnflbccphgkncbmllhfljdfa\|Network service crashed, restarting service' &
       wlrctl toplevel waitfor app_id:vid-viewer title:"MM Watch | Endless Entertainment - Chromium"
       sleep 10
       wlrctl toplevel close app_id:vid-viewer title:"MM Watch | Endless Entertainment - Chromium"
