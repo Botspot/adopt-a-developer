@@ -17,14 +17,14 @@ Best used on:
 ## FAQ
 - Is this illegal? **No.** It probably breaks somebody's terms of service, but there should be no way you could get punished for that.
 - Is this unethical? **No.** This offers the same revenue stream that YouTubers have, to software developers.
-- Is this risky to run on my device? **It shouldn't be.** This just goes to one website in an isolated web browser profile. Of course, it is a good idea to know what shell scripts do before you run them, but as long as you trust me to not put a virus in the script, you should be fine.
+- Is this risky to run on my personal device? **No.** This just goes to one website in an isolated web browser profile. All they get is your IP address and a fake screen resolution.
 - Do I need a credit card, bank account, or Google account to run this? **No.**
-- Can I become a developer who can receive donations using this? **Yes you can try, but good luck.** I am still working on finding ways to simplify that process. For now, the only person you can donate to using Adopt a Developer is me.
+- Can I become a developer who can receive donations using this? **Yes you can try, but good luck.** I am still working on finding ways to lower the barrier to entry.
 
 ## Try it out
 Run these commands to get started:
 ```
-sudo apt install chromium labwc wlr-randr #These are already installed on Raspberry Pi OS
+sudo apt install chromium labwc wlr-randr grim git cmake libxkbcommon-dev libwayland-dev meson #These are already installed on Raspberry Pi OS
 git clone https://github.com/Botspot/adopt-a-developer
 $PWD/adopt-a-developer/run.sh
 ```
