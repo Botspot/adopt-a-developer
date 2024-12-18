@@ -126,25 +126,30 @@ fi
 echo "vid-viewer chosen resolution: ${width}x${height}"
 
 echo "Checking for updates..."
-localhash="$(cd "$DIRECTORY" ; git rev-parse HEAD)"
-latesthash="$(git ls-remote https://github.com/Botspot/adopt-a-developer HEAD | awk '{print $1}')"
-if [ "$localhash" != "$latesthash" ] && [ ! -z "$latesthash" ] && [ ! -z "$localhash" ];then
-  echo "Auto-updating adopt-a-developer for the latest features and improvements..."
-  cd "$DIRECTORY"
-  git pull | cat #piping through cat makes git noninteractive
-  
-  if [ "${PIPESTATUS[0]}" == 0 ];then
-    cd
-    echo "git pull finished. Reloading script..."
-    set -a #export all variables so the script can see them
-    #run updated script
-    "$DIRECTORY/run.sh" "$@"
-    exit $?
-  else
-    cd
-    echo "git pull failed. Continuing..."
+update_check() {
+  localhash="$(cd "$DIRECTORY" ; git rev-parse HEAD)"
+  latesthash="$(git ls-remote https://github.com/Botspot/adopt-a-developer HEAD | awk '{print $1}')"
+  if [ "$localhash" != "$latesthash" ] && [ ! -z "$latesthash" ] && [ ! -z "$localhash" ];then
+    echo "Auto-updating adopt-a-developer for the latest features and improvements..."
+    cd "$DIRECTORY"
+    git pull | cat #piping through cat makes git noninteractive
+    
+    if [ "${PIPESTATUS[0]}" == 0 ];then
+      cd
+      echo "git pull finished. Reloading script..."
+      #kill labwc if running
+      kill $PID2KILL 2>/dev/null
+      set -a #export all variables so the script can see them
+      #run updated script
+      "$DIRECTORY/run.sh" "$@"
+      exit $?
+    else
+      cd
+      echo "git pull failed. Continuing..."
+    fi
   fi
-fi
+}
+update_check
 echo Done
 
 #autostart
@@ -218,6 +223,8 @@ EOF
       wlrctl toplevel close app_id:vid-viewer
       sleep 5
       kill "$chrpid" 2>/dev/null
+      
+      update_check
       
     done
   else
