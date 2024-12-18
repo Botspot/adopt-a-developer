@@ -70,6 +70,33 @@ process_exists() { #return 0 if the $1 PID is running, otherwise 1
   fi
 }
 
+update_check() {
+  localhash="$(cd "$DIRECTORY" ; git rev-parse HEAD)"
+  latesthash="$(git ls-remote https://github.com/Botspot/adopt-a-developer HEAD | awk '{print $1}')"
+  if [ "$localhash" != "$latesthash" ] && [ ! -z "$latesthash" ] && [ ! -z "$localhash" ];then
+    echo "Auto-updating adopt-a-developer for the latest features and improvements..."
+    cd "$DIRECTORY"
+    git pull | cat #piping through cat makes git noninteractive
+    
+    if [ "${PIPESTATUS[0]}" == 0 ];then
+      cd
+      echo "git pull finished. Reloading script..."
+      #kill labwc if running
+      kill $PID2KILL 2>/dev/null
+      #run updated script
+      "$DIRECTORY/run.sh" "$@"
+      exit $?
+    else
+      cd
+      echo "git pull failed. Continuing..."
+    fi
+  fi
+}
+
+less_chromium() {
+  grep --line-buffered -v '^close object .*: Invalid argument$\|DidStartWorkerFail chnccghejnflbccphgkncbmllhfljdfa\|Network service crashed, restarting service\|Unsupported pixel format\|Trying to Produce a Skia representation from a non-existent mailbox\|^libpng warning:\|Cannot create bo with format\|handshake failed; returned .*, SSL error code .*, net_error\|ReadExactly: expected .*, observed'
+}
+
 #check depends
 chromium_version="$(package_installed_version chromium | sed 's/.*://g ; s/-.*//g')"
 [ -z "$chromium_version" ] && error "chromium package needs to be installed."
@@ -95,7 +122,7 @@ if [ ! -f "$CHROMIUM_CONFIG/acct-info" ];then
   fi
   
   if [ ! -f /usr/local/bin/wlrctl ];then
-    sudo apt install -y cmake libxkbcommon-dev libwayland-dev || error "failed to install compile dependencies for wlrctl"
+    sudo apt install -y cmake libxkbcommon-dev libwayland-dev meson || error "failed to install compile dependencies for wlrctl"
     rm -rf ./wlrctl
     git clone https://git.sr.ht/~brocellous/wlrctl || error "failed to download wlrctl repo"
     cd wlrctl
@@ -117,7 +144,7 @@ if [ ! -f "$CHROMIUM_CONFIG/acct-info" ];then
   height="$(echo "$resolution" | sed 's/.*x//g')"
   
   #save UUID and screen resolution for later runs
-  echo -e "uuid=$uuid\nwidth=$width\nheight=$height" > "$CHROMIUM_CONFIG/acct-info"
+  echo -e "uuid=$uuid\nwidth=$width\nheight=$height" > "$CHROMIUM_CONFIG/acct-info" || error "Failed to create $CHROMIUM_CONFIG/acct-info file"
 else #not first run
   #get saved values like uuid, width, height
   source "$CHROMIUM_CONFIG/acct-info"
@@ -129,8 +156,9 @@ else #not first run
   
   if [ ! -z "$PID2KILL" ] && process_exists "$PID2KILL" ;then
     #kill other running process (may be autostarted)
-    echo "another instance of this script was already running ($PID2KILL), killed it"
+    echo "Another instance of this script was already running ($PID2KILL), killed it"
     kill "$PID2KILL"
+    sed -i '/^PID2KILL/d' "$CHROMIUM_CONFIG/acct-info"
   fi
   
   #prevent "restore session" question
@@ -142,29 +170,6 @@ fi
 echo "vid-viewer chosen resolution: ${width}x${height}"
 
 echo "Checking for updates..."
-update_check() {
-  localhash="$(cd "$DIRECTORY" ; git rev-parse HEAD)"
-  latesthash="$(git ls-remote https://github.com/Botspot/adopt-a-developer HEAD | awk '{print $1}')"
-  if [ "$localhash" != "$latesthash" ] && [ ! -z "$latesthash" ] && [ ! -z "$localhash" ];then
-    echo "Auto-updating adopt-a-developer for the latest features and improvements..."
-    cd "$DIRECTORY"
-    git pull | cat #piping through cat makes git noninteractive
-    
-    if [ "${PIPESTATUS[0]}" == 0 ];then
-      cd
-      echo "git pull finished. Reloading script..."
-      #kill labwc if running
-      kill $PID2KILL 2>/dev/null
-      set -a #export all variables so the script can see them
-      #run updated script
-      "$DIRECTORY/run.sh" "$@"
-      exit $?
-    else
-      cd
-      echo "git pull failed. Continuing..."
-    fi
-  fi
-}
 update_check
 echo Done
 
@@ -184,10 +189,6 @@ NoDisplay=false" > ~/.config/autostart/adopt-a-developer.desktop
 
 echo "To disable this running on next boot, remove this file: ~/.config/autostart/adopt-a-developer.desktop"
 EOF
-
-less_chromium() {
-  grep --line-buffered -v '^close object .*: Invalid argument$\|DidStartWorkerFail chnccghejnflbccphgkncbmllhfljdfa\|Network service crashed, restarting service\|Unsupported pixel format\|Trying to Produce a Skia representation from a non-existent mailbox\|^libpng warning:\|Cannot create bo with format\|handshake failed; returned .*, SSL error code .*, net_error\|ReadExactly: expected .*, observed'
-}
 
 (read line
   #echo "line was '$line'"
@@ -252,7 +253,7 @@ less_chromium() {
             break
           else
             #browser and labwc killed, so this script must have been killed by another process
-            error "browser and labwc killed, so this script must have been killed by another process"
+            error "browser and labwc killed, so likely another process was started. Exiting."
           fi
         fi
         sleep 10
