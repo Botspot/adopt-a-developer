@@ -22,10 +22,10 @@ Best used on:
 - Can I become a developer who can receive donations using this? **Yes you can try, but good luck.** I am still working on finding ways to simplify that process. For now, the only person you can donate to using Adopt a Developer is me.
 
 ## Try it out
-If you want to try this out, the script will ask for a UUID, which you will need to contact me for. I have a very limited number of UUIDs to hand out. Contact me on Discord "`botspot.`"  
-If you do have a UUID, run these commands to get started:
+Run these commands to get started:
 ```
 sudo apt install chromium labwc wlr-randr #These are already installed on Raspberry Pi OS
 git clone https://github.com/Botspot/adopt-a-developer
 $PWD/adopt-a-developer/run.sh
 ```
+The script will ask for a UUID, which you will need to contact me for. I have a very limited number of UUIDs to hand out. Contact me on Discord "`botspot.`"  
