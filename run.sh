@@ -60,6 +60,16 @@ runonce() { #run command only if it's never been run before. Useful for one-time
   fi
 }
 
+process_exists() { #return 0 if the $1 PID is running, otherwise 1
+  [ -z "$1" ] && error "process_exists(): no PID given!"
+  
+  if [ -f "/proc/$1/status" ];then
+    return 0
+  else
+    return 1
+  fi
+}
+
 #check depends
 chromium_version="$(package_installed_version chromium | sed 's/.*://g ; s/-.*//g')"
 [ -z "$chromium_version" ] && error "chromium package needs to be installed."
@@ -115,6 +125,12 @@ else #not first run
     error "Failed to get uuid value from $CHROMIUM_CONFIG/acct-info - go check if that file went missing somehow."
   else
     echo "vid-viewer chosen UUID: $uuid"
+  fi
+  
+  if [ ! -z "$PID2KILL" ] && process_exists "$PID2KILL" ;then
+    #kill other running process (may be autostarted)
+    echo "another instance of this script was already running ($PID2KILL), killed it"
+    kill "$PID2KILL"
   fi
   
   #prevent "restore session" question
@@ -179,6 +195,10 @@ less_chromium() {
     eval $line #set the values of WAYLAND_DISPLAY and PID2KILL
     export WAYLAND_DISPLAY #needed for x11/headless systems, where this is not already an environment variable
     #run internal programs here
+    
+    #add PID of sleep command keeping labwc open, to acct-info to prevent multiple instances
+    echo "PID2KILL=$PID2KILL" >> "$CHROMIUM_CONFIG/acct-info"
+    
     trap "kill $PID2KILL 2>/dev/null" EXIT
     #resize screen
     wlr-randr --output $(wlr-randr | head -n1 | awk '{print $1}') --custom-mode ${width}x${height} || error "screen resize failed."
@@ -195,7 +215,7 @@ less_chromium() {
       echo cookies_set=1 >> "$CHROMIUM_CONFIG/acct-info"
     fi
     
-    echo -e "Launching hidden browser to donate to the developer..."
+    echo -e "Launching hidden browser to donate to the developer...\nLeave this running as much as you can."
     while true;do
       $chromium_binary "${shared_flags[@]}" --class=vid-viewer --start-maximized $([ $fullscreen == 1 ] && echo '--start-fullscreen') "$(shuf "$DIRECTORY/starting-links" | head -n1)" 2>&1 | less_chromium &
       chrpid=$!
@@ -224,10 +244,16 @@ less_chromium() {
             wlrctl toplevel minimize app_id:vid-viewer
           fi
         fi
-        if [ ! -f "/proc/$chrpid/status" ];then
-          echo "WARNING: browser process disappeared. Waiting 1 minute and retrying."
-          sleep 60
-          break
+        if ! process_exists "$chrpid" ;then
+          if process_exists "$PID2KILL" ;then
+            #only browser killed, labwc still running
+            echo "WARNING: browser process disappeared. Waiting 1 minute and retrying."
+            sleep 60
+            break
+          else
+            #browser and labwc killed, so this script must have been killed by another process
+            error "browser and labwc killed, so this script must have been killed by another process"
+          fi
         fi
         sleep 10
         i=$((i+1))
