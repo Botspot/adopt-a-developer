@@ -97,14 +97,28 @@ less_chromium() { #hide harmless errors from chromium
   grep --line-buffered -v '^close object .*: Invalid argument$\|DidStartWorkerFail chnccghejnflbccphgkncbmllhfljdfa\|Network service crashed, restarting service\|Unsupported pixel format\|Trying to Produce a Skia representation from a non-existent mailbox\|^libpng warning:\|Cannot create bo with format\|handshake failed; returned .*, SSL error code .*, net_error\|ReadExactly: expected .*, observed\|ERROR:wayland_event_watcher.cc'
 }
 
+get_color_of_pixel() { #get the base64 hash of a 1x1 ppm image taken at the specified coordinates
+  grim -g "$1,$2 1x1" -t ppm - | base64
+}
+
 #check depends
 chromium_version="$(package_installed_version chromium | sed 's/.*://g ; s/-.*//g')"
 [ -z "$chromium_version" ] && error "chromium package needs to be installed."
 chromium_binary='/usr/lib/chromium/chromium'
 [ ! -f $chromium_binary ] && error "chromium package needs to be installed."
 
-[ ! -f /usr/bin/labwc ] && error "labwc package needs to be installed."
-[ ! -f /usr/bin/wlr-randr ] && error "wlr-randr package needs to be installed."
+if ! command -v labwc >/dev/null ;then
+  echo "labwc package needs to be installed. trying to install it now..."
+  sudo apt install -y labwc || exit 1
+fi
+if ! command -v wlr-randr >/dev/null ;then
+  echo "wlr-randr package needs to be installed. trying to install it now..."
+  sudo apt install -y wlr-randr || exit 1
+fi
+if ! command -v grim >/dev/null ;then
+  echo "grim package needs to be installed. trying to install it now..."
+  sudo apt install -y grim || exit 1
+fi
 #[ -z "$WAYLAND_DISPLAY" ] && error "For this script to work, your system needs to be using Wayland."
 
 user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64; ) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/$chromium_version Chrome/$chromium_version Not/A)Brand/8  Safari/537.36"
@@ -161,11 +175,6 @@ else #not first run
     echo "Another instance of this script was already running ($PID2KILL), killed it"
     kill "$PID2KILL"
   fi
-  
-  #prevent "restore session" question
-  sed -i 's/"exited_cleanly":false/"exited_cleanly":true/ ; s/"exit_type":"Crashed"/"exit_type":"Normal"/' "$CHROMIUM_CONFIG/Default/Preferences"
-  #remove files left behind killed chromium
-  rm -f "$CHROMIUM_CONFIG/Default/.org.chromium.Chromium."*
 fi
 
 echo "vid-viewer chosen resolution: ${width}x${height}"
@@ -222,6 +231,11 @@ EOF
     
     echo -e "Launching hidden browser to donate to the developer...\nLeave this running as much as you can."
     while true;do
+      #prevent "restore session" question
+      sed -i 's/"exited_cleanly":false/"exited_cleanly":true/ ; s/"exit_type":"Crashed"/"exit_type":"Normal"/' "$CHROMIUM_CONFIG/Default/Preferences"
+      #remove files left behind killed chromium
+      rm -f "$CHROMIUM_CONFIG/Default/.org.chromium.Chromium."*
+      
       $chromium_binary "${shared_flags[@]}" --class=vid-viewer --start-maximized $([ $fullscreen == 1 ] && echo '--start-fullscreen') "$(shuf "$DIRECTORY/starting-links" | head -n1)" 2>&1 | less_chromium &
       chrpid=$!
       
@@ -245,6 +259,16 @@ EOF
         if [ "$limit_fps" == 1 ];then
           wlrctl toplevel focus app_id:vid-viewer
           #sleep 0.5
+          
+          #1 minute after starting browser, check for cookie banner while browser is raised
+          if [ $i == 6 ] && [ "$(sleep 3 ; get_color_of_pixel $((width/2+50)) $((height-70)))" == UDYKMSAxCjI1NQpEiO4= ];then
+            #shift-tab twice, then Enter
+            wlrctl keyboard type $'\t' modifiers SHIFT
+            sleep 0.5
+            wlrctl keyboard type $'\t' modifiers SHIFT
+            sleep 0.5
+            wlrctl keyboard type $'\n'
+          fi
           if [ $inspect == false ];then
             wlrctl toplevel minimize app_id:vid-viewer
           fi
@@ -261,6 +285,7 @@ EOF
             error "browser and labwc killed, so likely another process was started. Exiting."
           fi
         fi
+        
         sleep 10
         i=$((i+1))
       done
