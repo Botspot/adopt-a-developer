@@ -5,7 +5,7 @@ mode=headless
 case $mode in
   nested)
     fullscreen=0
-    limit_fps=1
+    limit_fps=0
     ;;
   headless)
     fullscreen=1
@@ -94,7 +94,7 @@ update_check() { #check for updates and reload the script if necessary
 }
 
 less_chromium() { #hide harmless errors from chromium
-  grep --line-buffered -v '^close object .*: Invalid argument$\|DidStartWorkerFail chnccghejnflbccphgkncbmllhfljdfa\|Network service crashed, restarting service\|Unsupported pixel format\|Trying to Produce a Skia representation from a non-existent mailbox\|^libpng warning:\|Cannot create bo with format\|handshake failed; returned .*, SSL error code .*, net_error\|ReadExactly: expected .*, observed'
+  grep --line-buffered -v '^close object .*: Invalid argument$\|DidStartWorkerFail chnccghejnflbccphgkncbmllhfljdfa\|Network service crashed, restarting service\|Unsupported pixel format\|Trying to Produce a Skia representation from a non-existent mailbox\|^libpng warning:\|Cannot create bo with format\|handshake failed; returned .*, SSL error code .*, net_error\|ReadExactly: expected .*, observed\|ERROR:wayland_event_watcher.cc'
 }
 
 #check depends
