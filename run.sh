@@ -169,6 +169,10 @@ NoDisplay=false" > ~/.config/autostart/adopt-a-developer.desktop
 echo "To disable this running on next boot, remove this file: ~/.config/autostart/adopt-a-developer.desktop"
 EOF
 
+less_chromium() {
+  grep --line-buffered -v '^close object .*: Invalid argument$\|DidStartWorkerFail chnccghejnflbccphgkncbmllhfljdfa\|Network service crashed, restarting service\|Unsupported pixel format\|Trying to Produce a Skia representation from a non-existent mailbox\|^libpng warning:\|Cannot create bo with format\|handshake failed; returned .*, SSL error code .*, net_error'
+}
+
 (read line
   #echo "line was '$line'"
   if [[ "$line" == WAYLAND_DISPLAY=* ]];then
@@ -182,7 +186,7 @@ EOF
     #run browser with uuid to set cookies
     if [ "$cookies_set" != 1 ];then
       echo "Launching hidden browser to set cookies... this should take less than 20 seconds."
-      $chromium_binary "${shared_flags[@]}" --class=vid-viewer --start-maximized "https://mm-watch.com?u=$uuid" 2>&1 | grep --line-buffered -v 'close object .*: Invalid argument\|DidStartWorkerFail chnccghejnflbccphgkncbmllhfljdfa\|Network service crashed, restarting service' &
+      $chromium_binary "${shared_flags[@]}" --class=vid-viewer --start-maximized "https://mm-watch.com?u=$uuid" 2>&1 | less_chromium &
       wlrctl toplevel waitfor app_id:vid-viewer title:"MM Watch | Endless Entertainment - Chromium"
       sleep 10
       wlrctl toplevel close app_id:vid-viewer title:"MM Watch | Endless Entertainment - Chromium"
@@ -191,13 +195,18 @@ EOF
       echo cookies_set=1 >> "$CHROMIUM_CONFIG/acct-info"
     fi
     
-    echo "Launching hidden browser to donate to the developer... keep this running."
+    echo -e "Launching hidden browser to donate to the developer..."
     while true;do
-      $chromium_binary "${shared_flags[@]}" --class=vid-viewer --start-maximized $([ $fullscreen == 1 ] && echo '--start-fullscreen') "$(shuf "$DIRECTORY/starting-links" | head -n1)" &>/dev/null &
+      $chromium_binary "${shared_flags[@]}" --class=vid-viewer --start-maximized $([ $fullscreen == 1 ] && echo '--start-fullscreen') "$(shuf "$DIRECTORY/starting-links" | head -n1)" 2>&1 | less_chromium &
       chrpid=$!
+      echo $PID2KILL
       
       #wait until chromium is running, then minimize it to reduce GPU usage
-      [ "$limit_fps" == 1 ] && (wlrctl toplevel waitfor app_id:vid-viewer ; sleep 5)
+      if [ "$limit_fps" == 1 ];then
+        wlrctl toplevel waitfor app_id:vid-viewer
+        echo "Browser window up and running as expected. All good."
+        sleep 5
+      fi
       
       i=0
       #every 10s, raise chromium window, every 50m restart chromium
@@ -216,19 +225,25 @@ EOF
             wlrctl toplevel minimize app_id:vid-viewer
           fi
         fi
+        if [ ! -f "/proc/$chrpid/status" ];then
+          echo "WARNING: browser process disappeared. Waiting 1 minute and retrying."
+          sleep 60
+          break
+        fi
         sleep 10
         i=$((i+1))
       done
+      
       #close chromium nicely, then forcefully
       wlrctl toplevel close app_id:vid-viewer
       sleep 5
       kill "$chrpid" 2>/dev/null
       
       update_check
-      
+      [ "$i" == 300 ] && echo "50 minutes has elapsed, restarting browser"
     done
   else
-    echo "WARNING: unknown line from labwc: $line"
+    error "Unknown line from labwc: $line"
   fi
 ) < <(WLR_BACKENDS="$(echo "$mode" | sed 's/nested/wayland/g')" labwc -C "$DIRECTORY/labwc" -S 'bash -c "echo WAYLAND_DISPLAY=$WAYLAND_DISPLAY PID2KILL=$$ 1>&2;sleep infinity"' 2>&1 | \
   grep --line-buffered "^WAYLAND_DISPLAY="; echo "labwc exitcode was ${PIPESTATUS[0]}")
