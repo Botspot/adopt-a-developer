@@ -70,7 +70,7 @@ process_exists() { #return 0 if the $1 PID is running, otherwise 1
   fi
 }
 
-update_check() {
+update_check() { #check for updates and reload the script if necessary
   localhash="$(cd "$DIRECTORY" ; git rev-parse HEAD)"
   latesthash="$(git ls-remote https://github.com/Botspot/adopt-a-developer HEAD | awk '{print $1}')"
   if [ "$localhash" != "$latesthash" ] && [ ! -z "$latesthash" ] && [ ! -z "$localhash" ];then
@@ -93,7 +93,7 @@ update_check() {
   fi
 }
 
-less_chromium() {
+less_chromium() { #hide harmless errors from chromium
   grep --line-buffered -v '^close object .*: Invalid argument$\|DidStartWorkerFail chnccghejnflbccphgkncbmllhfljdfa\|Network service crashed, restarting service\|Unsupported pixel format\|Trying to Produce a Skia representation from a non-existent mailbox\|^libpng warning:\|Cannot create bo with format\|handshake failed; returned .*, SSL error code .*, net_error\|ReadExactly: expected .*, observed'
 }
 
@@ -121,8 +121,10 @@ if [ ! -f "$CHROMIUM_CONFIG/acct-info" ];then
     error "Unknown UUID format for input '$uuid'. Please run this script and try again."
   fi
   
+  #compile wlrctl
   if [ ! -f /usr/local/bin/wlrctl ];then
-    sudo apt install -y cmake libxkbcommon-dev libwayland-dev meson || error "failed to install compile dependencies for wlrctl"
+    echo "Compiling wlrctl tool..."
+    sudo apt install -y cmake libxkbcommon-dev libwayland-dev meson git || error "failed to install compile dependencies for wlrctl"
     rm -rf ./wlrctl
     git clone https://git.sr.ht/~brocellous/wlrctl || error "failed to download wlrctl repo"
     cd wlrctl
@@ -158,7 +160,6 @@ else #not first run
     #kill other running process (may be autostarted)
     echo "Another instance of this script was already running ($PID2KILL), killed it"
     kill "$PID2KILL"
-    sed -i '/^PID2KILL/d' "$CHROMIUM_CONFIG/acct-info"
   fi
   
   #prevent "restore session" question
@@ -190,7 +191,7 @@ NoDisplay=false" > ~/.config/autostart/adopt-a-developer.desktop
 echo "To disable this running on next boot, remove this file: ~/.config/autostart/adopt-a-developer.desktop"
 EOF
 
-(read line
+(read line #get data values from labwc subprocess
   #echo "line was '$line'"
   if [[ "$line" == WAYLAND_DISPLAY=* ]];then
     eval $line #set the values of WAYLAND_DISPLAY and PID2KILL
@@ -198,22 +199,25 @@ EOF
     #run internal programs here
     
     #add PID of sleep command keeping labwc open, to acct-info to prevent multiple instances
+    sed -i '/^PID2KILL/d' "$CHROMIUM_CONFIG/acct-info"
     echo "PID2KILL=$PID2KILL" >> "$CHROMIUM_CONFIG/acct-info"
     
-    trap "kill $PID2KILL 2>/dev/null" EXIT
+    trap "kill $PID2KILL 2>/dev/null" EXIT #make sure labwc exits if this script is killed
     #resize screen
     wlr-randr --output $(wlr-randr | head -n1 | awk '{print $1}') --custom-mode ${width}x${height} || error "screen resize failed."
     
     #run browser with uuid to set cookies
-    if [ "$cookies_set" != 1 ];then
+    if [ "$cookies_set" != 1 ] || (( RANDOM % 10 == 0 ));then
       echo "Launching hidden browser to set cookies... this should take less than 20 seconds"
       $chromium_binary "${shared_flags[@]}" --class=vid-viewer --start-maximized "https://mm-watch.com?u=$uuid" 2>&1 | less_chromium &
       wlrctl toplevel waitfor app_id:vid-viewer title:"MM Watch | Endless Entertainment - Chromium"
       sleep 10
       wlrctl toplevel close app_id:vid-viewer title:"MM Watch | Endless Entertainment - Chromium"
       echo "Cookies set successfully."
-      cookies_set=1
-      echo cookies_set=1 >> "$CHROMIUM_CONFIG/acct-info"
+      if [ "$cookies_set" != 1 ];then
+        cookies_set=1
+        echo cookies_set=1 >> "$CHROMIUM_CONFIG/acct-info"
+      fi
     fi
     
     echo -e "Launching hidden browser to donate to the developer...\nLeave this running as much as you can."
@@ -237,7 +241,7 @@ EOF
         else
           inspect=false
         fi
-        
+        #raise window, then lower it immediately for 6 frames per minute
         if [ "$limit_fps" == 1 ];then
           wlrctl toplevel focus app_id:vid-viewer
           #sleep 0.5
@@ -245,6 +249,7 @@ EOF
             wlrctl toplevel minimize app_id:vid-viewer
           fi
         fi
+        #check for killed processes
         if ! process_exists "$chrpid" ;then
           if process_exists "$PID2KILL" ;then
             #only browser killed, labwc still running
@@ -265,7 +270,7 @@ EOF
       sleep 5
       kill "$chrpid" 2>/dev/null
       
-      update_check
+      update_check #check for updates again
       [ "$i" == 300 ] && echo "50 minutes has elapsed, restarting browser"
     done
   else
