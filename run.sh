@@ -185,7 +185,7 @@ less_chromium() {
     
     #run browser with uuid to set cookies
     if [ "$cookies_set" != 1 ];then
-      echo "Launching hidden browser to set cookies... this should take less than 20 seconds."
+      echo "Launching hidden browser to set cookies... this should take less than 20 seconds"
       $chromium_binary "${shared_flags[@]}" --class=vid-viewer --start-maximized "https://mm-watch.com?u=$uuid" 2>&1 | less_chromium &
       wlrctl toplevel waitfor app_id:vid-viewer title:"MM Watch | Endless Entertainment - Chromium"
       sleep 10
@@ -199,7 +199,6 @@ less_chromium() {
     while true;do
       $chromium_binary "${shared_flags[@]}" --class=vid-viewer --start-maximized $([ $fullscreen == 1 ] && echo '--start-fullscreen') "$(shuf "$DIRECTORY/starting-links" | head -n1)" 2>&1 | less_chromium &
       chrpid=$!
-      echo $PID2KILL
       
       #wait until chromium is running, then minimize it to reduce GPU usage
       if [ "$limit_fps" == 1 ];then
