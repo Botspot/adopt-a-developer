@@ -76,6 +76,7 @@ update_check() { #check for updates and reload the script if necessary
   if [ "$localhash" != "$latesthash" ] && [ ! -z "$latesthash" ] && [ ! -z "$localhash" ];then
     echo "Auto-updating adopt-a-developer for the latest features and improvements..."
     cd "$DIRECTORY"
+    git restore . #abandon changes to tracked files (otherwise users who modified this script are left behind)
     git pull | cat #piping through cat makes git noninteractive
     
     if [ "${PIPESTATUS[0]}" == 0 ];then
