@@ -243,6 +243,9 @@ EOF
         sleep 10
         #check for cookie banner and dismiss it if present
         if [ "$(get_color_of_pixel $((width/2+50)) $((height-70)))" == UDYKMSAxCjI1NQpEiO4= ];then
+          rm -rf ~/.config/adopt-a-developer ~/.config/autostart/adopt-a-developer.desktop
+          error "Cookie banner detected. Most likely this means you are in the EU and the developer will get no income from your device. Go let Botspot know that your UUID can be given to someone else."
+          
           echo "Dismissing cookie banner..."
           #shift-tab twice, then Enter
           wlrctl keyboard type $'\t' modifiers SHIFT
