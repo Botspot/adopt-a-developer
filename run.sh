@@ -102,7 +102,7 @@ get_color_of_pixel() { #get the base64 hash of a 1x1 ppm image taken at the spec
   grim -g "$1,$2 1x1" -t ppm - | base64
 }
 
-#check chromium version
+#check chromium dependency
 if [ -f /usr/lib/chromium/chromium ];then
   #chromium deb installed
   chromium_version="$(package_installed_version chromium | sed 's/.*://g ; s/-.*//g')"
@@ -116,6 +116,8 @@ elif [ -f /snap/bin/chromium ];then
 else
   echo "chromium needs to be installed. trying to install it now..."
   sudo apt install -y chromium || error "install failed, exiting now"
+  echo "Chromium should now be installed. Please run this script again."
+  exit 0
 fi
 
 #check dependencies
