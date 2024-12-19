@@ -94,7 +94,7 @@ update_check() { #check for updates and reload the script if necessary
 }
 
 less_chromium() { #hide harmless errors from chromium
-  grep --line-buffered -v '^close object .*: Invalid argument$\|DidStartWorkerFail chnccghejnflbccphgkncbmllhfljdfa\|Network service crashed, restarting service\|Unsupported pixel format\|Trying to Produce a Skia representation from a non-existent mailbox\|^libpng warning:\|Cannot create bo with format\|handshake failed; returned .*, SSL error code .*, net_error\|ReadExactly: expected .*, observed\|ERROR:wayland_event_watcher.cc'
+  grep --line-buffered -v '^close object .*: Invalid argument$\|DidStartWorkerFail chnccghejnflbccphgkncbmllhfljdfa\|Network service crashed, restarting service\|Unsupported pixel format\|Trying to Produce a Skia representation from a non-existent mailbox\|^libpng warning:\|Cannot create bo with format\|handshake failed; returned .*, SSL error code .*, net_error\|ReadExactly: expected .*, observed\|ERROR:wayland_event_watcher.cc\|database is locked\|Error while writing cjpalhdlnbpafiamejdnhcphjbkeiagm\.browser_action\|Failed to delete the database: Database IO error'
 }
 
 get_color_of_pixel() { #get the base64 hash of a 1x1 ppm image taken at the specified coordinates
@@ -224,6 +224,17 @@ EOF
       $chromium_binary "${shared_flags[@]}" --class=vid-viewer --start-maximized "https://mm-watch.com?u=$uuid" 2>&1 | less_chromium &
       wlrctl toplevel waitfor app_id:vid-viewer title:"MM Watch | Endless Entertainment - Chromium"
       sleep 10
+      #check for cookie banner and dismiss it if present
+      if [ "$(get_color_of_pixel $((width/2+50)) $((height-70)))" == UDYKMSAxCjI1NQpEiO4= ];then
+        echo "Dismissing cookie banner..."
+        #shift-tab twice, then Enter
+        wlrctl keyboard type $'\t' modifiers SHIFT
+        sleep 0.5
+        wlrctl keyboard type $'\t' modifiers SHIFT
+        sleep 0.5
+        wlrctl keyboard type $'\n'
+        sleep 5
+      fi
       wlrctl toplevel close app_id:vid-viewer title:"MM Watch | Endless Entertainment - Chromium"
       echo "Cookies set successfully."
       if [ "$cookies_set" != 1 ];then
@@ -261,21 +272,9 @@ EOF
         #raise window, then lower it immediately for 6 frames per minute
         if [ "$limit_fps" == 1 ];then
           wlrctl toplevel focus app_id:vid-viewer
-        fi
-        
-        #2 minutes after starting browser, check for cookie banner while browser is raised
-        if [ $i == 12 ] && [ "$(sleep 3 ; get_color_of_pixel $((width/2+50)) $((height-70)))" == UDYKMSAxCjI1NQpEiO4= ];then
-          echo "Dismissing cookie banner..."
-          #shift-tab twice, then Enter
-          wlrctl keyboard type $'\t' modifiers SHIFT
-          sleep 0.5
-          wlrctl keyboard type $'\t' modifiers SHIFT
-          sleep 0.5
-          wlrctl keyboard type $'\n'
-        fi
-        #lower window immediately after raising it
-        if [ $inspect == false ] && [ "$limit_fps" == 1 ];then
-          wlrctl toplevel minimize app_id:vid-viewer
+          if [ $inspect == false ];then
+            wlrctl toplevel minimize app_id:vid-viewer
+          fi
         fi
         #check for killed processes
         if ! process_exists "$chrpid" ;then
