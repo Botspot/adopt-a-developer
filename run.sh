@@ -1,5 +1,5 @@
 #!/bin/bash
-
+{
 mode=headless
 #mode=nested
 case $mode in
@@ -308,4 +308,4 @@ EOF
 ) < <(WLR_BACKENDS="$(echo "$mode" | sed 's/nested/wayland/g')" labwc -C "$DIRECTORY/labwc" -S 'bash -c "echo WAYLAND_DISPLAY=$WAYLAND_DISPLAY PID2KILL=$$ 1>&2;sleep infinity"' 2>&1 | \
   grep --line-buffered "^WAYLAND_DISPLAY="; echo "labwc exitcode was ${PIPESTATUS[0]}")
 
-
+}
