@@ -219,33 +219,33 @@ EOF
       sleep 1
     done
     
-    #run browser with uuid to set cookies
-    if [ "$cookies_set" != 1 ] || (( RANDOM % 10 == 0 ));then
-      echo "Launching hidden browser to set cookies... this should take less than 20 seconds"
-      $chromium_binary "${shared_flags[@]}" --class=vid-viewer --start-maximized "https://mm-watch.com?u=$uuid" 2>&1 | less_chromium &
-      wlrctl toplevel waitfor app_id:vid-viewer title:"MM Watch | Endless Entertainment - Chromium"
-      sleep 10
-      #check for cookie banner and dismiss it if present
-      if [ "$(get_color_of_pixel $((width/2+50)) $((height-70)))" == UDYKMSAxCjI1NQpEiO4= ];then
-        echo "Dismissing cookie banner..."
-        #shift-tab twice, then Enter
-        wlrctl keyboard type $'\t' modifiers SHIFT
-        sleep 0.5
-        wlrctl keyboard type $'\t' modifiers SHIFT
-        sleep 0.5
-        wlrctl keyboard type $'\n'
-        sleep 5
-      fi
-      wlrctl toplevel close app_id:vid-viewer title:"MM Watch | Endless Entertainment - Chromium"
-      echo "Cookies set successfully."
-      if [ "$cookies_set" != 1 ];then
-        cookies_set=1
-        echo cookies_set=1 >> "$CHROMIUM_CONFIG/acct-info"
-      fi
-    fi
-    
     echo -e "Launching hidden browser to donate to the developer...\nLeave this running as much as you can."
     while true;do
+      #run browser with uuid to set cookies (slight chance of running again occasionally to fix issue where cookies went missing somehow)
+      if [ "$cookies_set" != 1 ] || (( RANDOM % 40 == 0 ));then
+        echo "Setting cookies... this should take less than 30 seconds"
+        $chromium_binary "${shared_flags[@]}" --class=vid-viewer --start-maximized "https://mm-watch.com?u=$uuid" 2>&1 | less_chromium &
+        wlrctl toplevel waitfor app_id:vid-viewer title:"MM Watch | Endless Entertainment - Chromium"
+        sleep 10
+        #check for cookie banner and dismiss it if present
+        if [ "$(get_color_of_pixel $((width/2+50)) $((height-70)))" == UDYKMSAxCjI1NQpEiO4= ];then
+          echo "Dismissing cookie banner..."
+          #shift-tab twice, then Enter
+          wlrctl keyboard type $'\t' modifiers SHIFT
+          sleep 0.5
+          wlrctl keyboard type $'\t' modifiers SHIFT
+          sleep 0.5
+          wlrctl keyboard type $'\n'
+          sleep 5
+        fi
+        wlrctl toplevel close app_id:vid-viewer
+        echo "Cookies set successfully."
+        if [ "$cookies_set" != 1 ];then
+          cookies_set=1
+          echo cookies_set=1 >> "$CHROMIUM_CONFIG/acct-info"
+        fi
+      fi
+      
       #prevent "restore session" question
       sed -i 's/"exited_cleanly":false/"exited_cleanly":true/ ; s/"exit_type":"Crashed"/"exit_type":"Normal"/' "$CHROMIUM_CONFIG/Default/Preferences"
       #remove files left behind killed chromium
