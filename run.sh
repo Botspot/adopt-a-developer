@@ -212,8 +212,11 @@ EOF
     echo "PID2KILL=$PID2KILL" >> "$CHROMIUM_CONFIG/acct-info"
     
     trap "kill $PID2KILL 2>/dev/null" EXIT #make sure labwc exits if this script is killed
-    #resize screen
-    wlr-randr --output $(wlr-randr | head -n1 | awk '{print $1}') --custom-mode ${width}x${height} || error "screen resize failed."
+    #resize screen in retry loop
+    while ! wlr-randr | grep -qF "${width}x${height} px (current)" ;do
+      wlr-randr --output $(wlr-randr | head -n1 | awk '{print $1}') --custom-mode ${width}x${height} || error "screen resize failed."
+      sleep 1
+    done
     
     #run browser with uuid to set cookies
     if [ "$cookies_set" != 1 ] || (( RANDOM % 10 == 0 ));then
@@ -258,20 +261,21 @@ EOF
         #raise window, then lower it immediately for 6 frames per minute
         if [ "$limit_fps" == 1 ];then
           wlrctl toplevel focus app_id:vid-viewer
-          #sleep 0.5
-          
-          #1 minute after starting browser, check for cookie banner while browser is raised
-          if [ $i == 6 ] && [ "$(sleep 3 ; get_color_of_pixel $((width/2+50)) $((height-70)))" == UDYKMSAxCjI1NQpEiO4= ];then
-            #shift-tab twice, then Enter
-            wlrctl keyboard type $'\t' modifiers SHIFT
-            sleep 0.5
-            wlrctl keyboard type $'\t' modifiers SHIFT
-            sleep 0.5
-            wlrctl keyboard type $'\n'
-          fi
-          if [ $inspect == false ];then
-            wlrctl toplevel minimize app_id:vid-viewer
-          fi
+        fi
+        
+        #2 minutes after starting browser, check for cookie banner while browser is raised
+        if [ $i == 12 ] && [ "$(sleep 3 ; get_color_of_pixel $((width/2+50)) $((height-70)))" == UDYKMSAxCjI1NQpEiO4= ];then
+          echo "Dismissing cookie banner..."
+          #shift-tab twice, then Enter
+          wlrctl keyboard type $'\t' modifiers SHIFT
+          sleep 0.5
+          wlrctl keyboard type $'\t' modifiers SHIFT
+          sleep 0.5
+          wlrctl keyboard type $'\n'
+        fi
+        #lower window immediately after raising it
+        if [ $inspect == false ] && [ "$limit_fps" == 1 ];then
+          wlrctl toplevel minimize app_id:vid-viewer
         fi
         #check for killed processes
         if ! process_exists "$chrpid" ;then
