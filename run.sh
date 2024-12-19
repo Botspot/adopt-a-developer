@@ -102,30 +102,42 @@ get_color_of_pixel() { #get the base64 hash of a 1x1 ppm image taken at the spec
   grim -g "$1,$2 1x1" -t ppm - | base64
 }
 
-#check depends
-chromium_version="$(package_installed_version chromium | sed 's/.*://g ; s/-.*//g')"
-[ -z "$chromium_version" ] && error "chromium package needs to be installed."
-chromium_binary='/usr/lib/chromium/chromium'
-[ ! -f $chromium_binary ] && error "chromium package needs to be installed."
+#check chromium version
+if [ -f /usr/lib/chromium/chromium ];then
+  #chromium deb installed
+  chromium_version="$(package_installed_version chromium | sed 's/.*://g ; s/-.*//g')"
+  [ -z "$chromium_version" ] && error "chromium deb is installed, but failed to get a version for it!"
+  chromium_binary=('/usr/lib/chromium/chromium')
+elif [ -f /snap/bin/chromium ];then
+  #snap version of chromium is installed (most likely ubuntu)
+  chromium_version="$(snap info chromium | grep installed | awk '{print $2}')"
+  [ -z "$chromium_version" ] && error "chromium snap is installed, but failed to get a version for it!"
+  chromium_binary=(/snap/bin/chromium)
+else
+  echo "chromium needs to be installed. trying to install it now..."
+  sudo apt install -y chromium || error "install failed, exiting now"
+fi
 
+#check dependencies
 if ! command -v labwc >/dev/null ;then
   echo "labwc package needs to be installed. trying to install it now..."
-  sudo apt install -y labwc || exit 1
+  sudo apt install -y labwc || error "install failed, exiting now"
 fi
 if ! command -v wlr-randr >/dev/null ;then
   echo "wlr-randr package needs to be installed. trying to install it now..."
-  sudo apt install -y wlr-randr || exit 1
+  sudo apt install -y wlr-randr || error "install failed, exiting now"
 fi
 if ! command -v grim >/dev/null ;then
   echo "grim package needs to be installed. trying to install it now..."
-  sudo apt install -y grim || exit 1
+  sudo apt install -y grim || error "install failed, exiting now"
 fi
 #[ -z "$WAYLAND_DISPLAY" ] && error "For this script to work, your system needs to be using Wayland."
 
 user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64; ) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/$chromium_version Chrome/$chromium_version Not/A)Brand/8  Safari/537.36"
-shared_flags=(--user-agent="$user_agent" --user-data-dir="$CHROMIUM_CONFIG" --password-store=basic --disable-hang-monitor --disable-gpu-process-crash-limit \
-  --disable-gpu-program-cache --disable-gpu-shader-disk-cache --disk-cache-size=$((10*1024*1024)) --media-cache-size=$((10*1024*1024)) --video-threads=1 \
-  --disable-accelerated-video-decode --num-raster-threads=1 --renderer-process-limit=1 --disable-low-res-tiling --mute-audio --no-first-run --enable-low-end-device-mode)
+shared_flags=(--user-agent="$user_agent" --user-data-dir="$CHROMIUM_CONFIG" --password-store=basic --disable-hang-monitor \
+  --disable-gpu-program-cache --disable-gpu-shader-disk-cache --disk-cache-size=$((10*1024*1024)) --media-cache-size=$((10*1024*1024)) \
+  --enable-features=UseOzonePlatform --ozone-platform=wayland --disable-gpu-process-crash-limit --video-threads=1 --disable-accelerated-video-decode \
+  --num-raster-threads=1 --renderer-process-limit=1 --disable-low-res-tiling --mute-audio --no-first-run --enable-low-end-device-mode)
 #GPU video decode disabled for stability reasons
 
 #first run sequence
@@ -247,7 +259,7 @@ EOF
       fi
       
       #prevent "restore session" question
-      sed -i 's/"exited_cleanly":false/"exited_cleanly":true/ ; s/"exit_type":"Crashed"/"exit_type":"Normal"/' "$CHROMIUM_CONFIG/Default/Preferences"
+      sed -i 's/"exited_cleanly":false/"exited_cleanly":true/g ; s/"exit_type":"Crashed"/"exit_type":"Normal"/g ; s/"crashed":true/"crashed":false/g' "$CHROMIUM_CONFIG/Default/Preferences"
       #remove files left behind killed chromium
       rm -f "$CHROMIUM_CONFIG/Default/.org.chromium.Chromium."*
       
