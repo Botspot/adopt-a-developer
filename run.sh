@@ -17,6 +17,10 @@ IFS=$'\n'
 CHROMIUM_CONFIG=$HOME/.config/adopt-a-developer
 DIRECTORY="$(dirname "$0")"
 
+exit_restart() { #exit with code 2 to signify that this script wants to be restarted by the daemon
+  exit 2
+}
+
 error() { #red text and exit 1
   echo -e "\e[91m$1\e[0m" 1>&2
   exit 1
@@ -84,9 +88,8 @@ update_check() { #check for updates and reload the script if necessary
       echo "git pull finished. Reloading script..."
       #kill labwc if running
       kill $PID2KILL 2>/dev/null
-      #run updated script
-      "$DIRECTORY/run.sh" "$@"
-      exit $?
+      #request to be restarted by the daemon
+      exit_restart
     else
       cd
       echo "git pull failed. Continuing..."
@@ -95,12 +98,18 @@ update_check() { #check for updates and reload the script if necessary
 }
 
 less_chromium() { #hide harmless errors from chromium
-  grep --line-buffered -v '^close object .*: Invalid argument$\|DidStartWorkerFail chnccghejnflbccphgkncbmllhfljdfa\|Network service crashed, restarting service\|Unsupported pixel format\|Trying to Produce a Skia representation from a non-existent mailbox\|^libpng warning:\|Cannot create bo with format\|handshake failed; returned .*, SSL error code .*, net_error\|ReadExactly: expected .*, observed\|ERROR:wayland_event_watcher.cc\|database is locked\|Error while writing cjpalhdlnbpafiamejdnhcphjbkeiagm\.browser_action\|Failed to delete the database: Database IO error'
+  grep --line-buffered -v '^close object .*: Invalid argument$\|DidStartWorkerFail chnccghejnflbccphgkncbmllhfljdfa\|Network service crashed, restarting service\|Unsupported pixel format\|Trying to Produce a Skia representation from a non-existent mailbox\|^libpng warning:\|Cannot create bo with format\|handshake failed; returned .*, SSL error code .*, net_error\|ReadExactly: expected .*, observed\|ERROR:wayland_event_watcher.cc\|database is locked\|Error while writing cjpalhdlnbpafiamejdnhcphjbkeiagm\.browser_action\|Failed to delete the database: Database IO error\|Message .* rejected by interface'
 }
 
 get_color_of_pixel() { #get the base64 hash of a 1x1 ppm image taken at the specified coordinates
   grim -g "$1,$2 1x1" -t ppm - | base64
 }
+
+#make sure I am being run by the daemon
+if [ "$YOU_ARE_BEING_RUN_BY_DAEMON" != 1 ];then
+  "${DIRECTORY}/daemon.sh"
+  exit $?
+fi
 
 #check chromium dependency
 if [ -f /usr/lib/chromium/chromium ];then
@@ -116,8 +125,8 @@ elif [ -f /snap/bin/chromium ];then
 else
   echo "chromium needs to be installed. trying to install it now..."
   sudo apt install -y chromium || error "install failed, exiting now"
-  echo "Chromium should now be installed. Please run this script again."
-  exit 0
+  echo "Chromium should now be installed. Restarting script..."
+  exit_restart
 fi
 
 #check dependencies
@@ -198,21 +207,24 @@ echo "Checking for updates..."
 update_check
 echo Done
 
-#autostart
+#autostart, respect user's deletion from old runonce (don't create the file again if user already deleted it once)
+export DIRECTORY
 runonce <<"EOF"
-echo "Setting up autostart..."
-mkdir -p ~/.config/autostart
-echo "[Desktop Entry]
+if ! grep -q 'eaddbd9eef16066e454078ee0d6dda65f27ab5e9' "${DIRECTORY}/runonce_hashes" || [ -f ~/.config/autostart/adopt-a-developer.desktop ];then
+  echo "Setting up autostart..."
+  mkdir -p ~/.config/autostart
+  echo "[Desktop Entry]
 Name=Adopt a Developer
-Exec=${DIRECTORY}/run.sh
+Exec=${DIRECTORY}/daemon.sh
 Terminal=false
-StartupWMClass=Pi-Apps
 Type=Application
 X-GNOME-Autostart-enabled=true
 Hidden=false
 NoDisplay=false" > ~/.config/autostart/adopt-a-developer.desktop
-
-echo "To disable this running on next boot, remove this file: ~/.config/autostart/adopt-a-developer.desktop"
+  
+  echo "To disable this running on next boot, remove this file: ~/.config/autostart/adopt-a-developer.desktop"
+fi
+true
 EOF
 
 (read line #get data values from labwc subprocess
@@ -296,14 +308,22 @@ EOF
         fi
         #check for killed processes
         if ! process_exists "$chrpid" ;then
-          if process_exists "$PID2KILL" ;then
-            #only browser killed, labwc still running
-            echo "WARNING: browser process disappeared. Waiting 1 minute and retrying."
+          #browser process killed, was anything else killed too?
+          if process_exists "$LABWC_PID" && process_exists "$PID2KILL";then
+            #labwc and sleep infinity subprocess still running
+            (error "WARNING: browser process disappeared. Waiting 60 seconds and retrying...")
             sleep 60
             break
+          elif process_exists "$PID2KILL" ;then
+            #labwc killed, but its sleep infinity subprocess still running: labwc crashed
+            kill "$PID2KILL"
+            (error "LABWC CRASHED!! Restarting script in 60 seconds...")
+            sleep 60
+            exit_restart
           else
-            #browser and labwc killed, so this script must have been killed by another process
-            error "browser and labwc killed, so likely another process was started. Exiting."
+            #labwc and sleep infinity subprocess killed, so this script must have been killed by another process
+            (error "browser and labwc killed, so likely another process was started. Exiting.")
+            exit 0
           fi
         fi
         
@@ -322,7 +342,7 @@ EOF
   else
     error "Unknown line from labwc: $line"
   fi
-) < <(WLR_BACKENDS="$(echo "$mode" | sed 's/nested/wayland/g')" labwc -C "$DIRECTORY/labwc" -S 'bash -c "echo WAYLAND_DISPLAY=$WAYLAND_DISPLAY PID2KILL=$$ 1>&2;sleep infinity"' 2>&1 | \
-  grep --line-buffered "^WAYLAND_DISPLAY="; echo "labwc exitcode was ${PIPESTATUS[0]}")
+) < <(WLR_BACKENDS="$(echo "$mode" | sed 's/nested/wayland/g')" labwc -C "$DIRECTORY/labwc" -S 'bash -c "echo WAYLAND_DISPLAY=$WAYLAND_DISPLAY PID2KILL=$$ LABWC_PID=$LABWC_PID;sleep infinity"' | \
+  grep --line-buffered "^WAYLAND_DISPLAY=" ; labwc_exitcode=${PIPESTATUS[0]} ; if [ "$labwc_exitcode" != 0 ];then echo "labwc exitcode was $labwc_exitcode" 1>&2 ;fi)
 
 }
