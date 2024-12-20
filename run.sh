@@ -15,7 +15,7 @@ esac
 
 IFS=$'\n'
 CHROMIUM_CONFIG=$HOME/.config/adopt-a-developer
-DIRECTORY="$(dirname "$0")"
+DIRECTORY="$(readlink -f "$(dirname "$0")")"
 
 exit_restart() { #exit with code 2 to signify that this script wants to be restarted by the daemon
   exit 2
@@ -104,6 +104,11 @@ less_chromium() { #hide harmless errors from chromium
 get_color_of_pixel() { #get the base64 hash of a 1x1 ppm image taken at the specified coordinates
   grim -g "$1,$2 1x1" -t ppm - | base64
 }
+
+#don't allow this to be run with sudo
+if [ $(id -u) == 0 ]; then
+  error "This is not designed to be run as root! Please try again as a regular user."
+fi
 
 #make sure I am being run by the daemon
 if [ "$YOU_ARE_BEING_RUN_BY_DAEMON" != 1 ];then
