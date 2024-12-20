@@ -257,7 +257,16 @@ EOF
       if [ "$cookies_set" != 1 ] || (( RANDOM % 40 == 0 ));then
         echo "Setting cookies... this should take less than 30 seconds"
         $chromium_binary "${shared_flags[@]}" --class=vid-viewer --start-maximized "https://mm-watch.com?u=$uuid" 2>&1 | less_chromium &
-        wlrctl toplevel waitfor app_id:vid-viewer title:"MM Watch | Endless Entertainment - Chromium"
+        chrpid=$!
+        while true;do
+          if wlrctl toplevel find app_id:vid-viewer title:"MM Watch | Endless Entertainment - Chromium" ;then
+            break
+          elif ! process_exists "$chrpid" ;then
+            error "Chromium process failed to start, please review errors above"
+          fi
+          sleep 1
+        done
+        
         sleep 10
         #check for cookie banner and dismiss it if present
         if [ "$(get_color_of_pixel $((width/2+50)) $((height-70)))" == UDYKMSAxCjI1NQpEiO4= ];then
