@@ -211,7 +211,7 @@ echo Done
 #autostart, respect user's deletion from old runonce (don't create the file again if user already deleted it once)
 export DIRECTORY
 runonce <<"EOF"
-if ! grep -q 'eaddbd9eef16066e454078ee0d6dda65f27ab5e9' "${DIRECTORY}/runonce_hashes" || [ -f ~/.config/autostart/adopt-a-developer.desktop ];then
+if ! grep -q 'eaddbd9eef16066e454078ee0d6dda65f27ab5e9' "${DIRECTORY}/runonce_hashes" 2>/dev/null || [ -f ~/.config/autostart/adopt-a-developer.desktop ];then
   echo "Setting up autostart..."
   mkdir -p ~/.config/autostart
   echo "[Desktop Entry]
