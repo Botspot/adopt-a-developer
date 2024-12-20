@@ -98,7 +98,7 @@ update_check() { #check for updates and reload the script if necessary
 }
 
 less_chromium() { #hide harmless errors from chromium
-  grep --line-buffered -v '^close object .*: Invalid argument$\|DidStartWorkerFail chnccghejnflbccphgkncbmllhfljdfa\|Network service crashed, restarting service\|Unsupported pixel format\|Trying to Produce a Skia representation from a non-existent mailbox\|^libpng warning:\|Cannot create bo with format\|handshake failed; returned .*, SSL error code .*, net_error\|ReadExactly: expected .*, observed\|ERROR:wayland_event_watcher.cc\|database is locked\|Error while writing cjpalhdlnbpafiamejdnhcphjbkeiagm\.browser_action\|Failed to delete the database: Database IO error\|Message .* rejected by interface'
+  grep --line-buffered -v '^close object .*: Invalid argument$\|DidStartWorkerFail chnccghejnflbccphgkncbmllhfljdfa\|Network service crashed, restarting service\|Unsupported pixel format\|Trying to Produce .* representation from a non-existent mailbox\|^libpng warning:\|Cannot create bo with format\|handshake failed; returned .*, SSL error code .*, net_error\|ReadExactly: expected .*, observed\|ERROR:wayland_event_watcher.cc\|database is locked\|Error while writing cjpalhdlnbpafiamejdnhcphjbkeiagm\.browser_action\|Failed to delete the database: Database IO error\|Message .* rejected by interface\|Failed to call method: org\.freedesktop\.ScreenSaver\.GetActive'
 }
 
 get_color_of_pixel() { #get the base64 hash of a 1x1 ppm image taken at the specified coordinates
@@ -147,9 +147,10 @@ fi
 user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64; ) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/$chromium_version Chrome/$chromium_version Not/A)Brand/8  Safari/537.36"
 shared_flags=(--user-agent="$user_agent" --user-data-dir="$CHROMIUM_CONFIG" --password-store=basic --disable-hang-monitor \
   --disable-gpu-program-cache --disable-gpu-shader-disk-cache --disk-cache-size=$((10*1024*1024)) --media-cache-size=$((10*1024*1024)) \
-  --enable-features=UseOzonePlatform --ozone-platform=wayland --disable-gpu-process-crash-limit --video-threads=1 --disable-accelerated-video-decode \
+  --enable-features=UseOzonePlatform --ozone-platform=wayland --disable-gpu-process-crash-limit --video-threads=1 --disable-accelerated-video-decode --disable-gpu-compositing \
   --num-raster-threads=1 --renderer-process-limit=1 --disable-low-res-tiling --mute-audio --no-first-run --enable-low-end-device-mode)
 #GPU video decode disabled for stability reasons
+#GPU compositing disabled to fix dmabuf errors on ubuntu with bad gpu drivers
 
 #first run sequence
 if [ ! -f "$CHROMIUM_CONFIG/acct-info" ];then
@@ -342,7 +343,7 @@ EOF
   else
     error "Unknown line from labwc: $line"
   fi
-) < <(WLR_BACKENDS="$(echo "$mode" | sed 's/nested/wayland/g')" labwc -C "$DIRECTORY/labwc" -S 'bash -c "echo WAYLAND_DISPLAY=$WAYLAND_DISPLAY PID2KILL=$$ LABWC_PID=$LABWC_PID;sleep infinity"' | \
+) < <(WLR_BACKENDS="${mode//nested/wayland}" labwc -C "$DIRECTORY/labwc" -s 'bash -c '\''echo "WAYLAND_DISPLAY=$WAYLAND_DISPLAY PID2KILL=$$ LABWC_PID=$LABWC_PID"; trap "kill $LABWC_PID 2>/dev/null" EXIT; sleep infinity'\' | \
   grep --line-buffered "^WAYLAND_DISPLAY=" ; labwc_exitcode=${PIPESTATUS[0]} ; if [ "$labwc_exitcode" != 0 ];then echo "labwc exitcode was $labwc_exitcode" 1>&2 ;fi)
 
 }
