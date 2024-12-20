@@ -181,7 +181,7 @@ if [ ! -f "$CHROMIUM_CONFIG/acct-info" ];then
   echo -n "Copying config... "
   rm -rf "$CHROMIUM_CONFIG"
   cp -a "$DIRECTORY/template-acct" "$CHROMIUM_CONFIG"
-  chmod -R 755 ~/.config/adopt-a-developer || sudo chmod -R 755 ~/.config/adopt-a-developer/ || error "Failed to set 755 folder permissions for ~/.config/adopt-a-developer"
+  chmod -R 755 "$CHROMIUM_CONFIG" || sudo chmod -R 755 "$CHROMIUM_CONFIG" || error "Failed to set 755 folder permissions for $CHROMIUM_CONFIG"
   echo Done
   
   #pick a screen resolution
