@@ -105,6 +105,13 @@ get_color_of_pixel() { #get the base64 hash of a 1x1 ppm image taken at the spec
   grim -g "$1,$2 1x1" -t ppm - | base64
 }
 
+clean_chromium_config() {
+  #prevent "restore session" question
+  sed -i 's/"exited_cleanly":false/"exited_cleanly":true/g ; s/"exit_type":"Crashed"/"exit_type":"Normal"/g ; s/"crashed":true/"crashed":false/g' "$CHROMIUM_CONFIG/Default/Preferences"
+  #remove files left behind killed chromium
+  rm -rf "$CHROMIUM_CONFIG/Default/.org.chromium.Chromium."* "$CHROMIUM_CONFIG/.org.chromium.Chromium."* "$CHROMIUM_CONFIG/tmp/.org.chromium.Chromium."*
+}
+
 #don't allow this to be run with sudo
 if [ $(id -u) == 0 ]; then
   error "This is not designed to be run as root! Please try again as a regular user."
@@ -180,8 +187,12 @@ if [ ! -f "$CHROMIUM_CONFIG/acct-info" ];then
   
   echo -n "Copying config... "
   rm -rf "$CHROMIUM_CONFIG"
+  mkdir -p "$(dirname "$CHROMIUM_CONFIG")" || error "Failed to make the config folder! You need to fix your file permissions/ownership."
   cp -a "$DIRECTORY/template-acct" "$CHROMIUM_CONFIG"
+  #folder permissions in .config may be weird
   chmod -R 755 "$CHROMIUM_CONFIG" || sudo chmod -R 755 "$CHROMIUM_CONFIG" || error "Failed to set 755 folder permissions for $CHROMIUM_CONFIG"
+  #make tmp directory for chromium - more reliable folder permissions than /tmp
+  mkdir -p "$CHROMIUM_CONFIG/tmp"
   echo Done
   
   #pick a screen resolution
@@ -196,9 +207,14 @@ else #not first run
   #get saved values like uuid, width, height
   source "$CHROMIUM_CONFIG/acct-info"
   if [ -z "$uuid" ];then
-    error "Failed to get uuid value from $CHROMIUM_CONFIG/acct-info - go check if that file went missing somehow."
+    error "Failed to get uuid value from $CHROMIUM_CONFIG/acct-info - go check if that file is empty somehow."
   else
     echo "vid-viewer chosen UUID: $uuid"
+  fi
+  
+  #make tmp directory for chromium - more reliable folder permissions than /tmp
+  if [ ! -d "$CHROMIUM_CONFIG/tmp" ];then
+    mkdir -p "$CHROMIUM_CONFIG/tmp"
   fi
   
   if [ ! -z "$PID2KILL" ] && process_exists "$PID2KILL" ;then
@@ -213,6 +229,8 @@ echo "vid-viewer chosen resolution: ${width}x${height}"
 echo "Checking for updates..."
 update_check
 echo Done
+
+export TMPDIR="$CHROMIUM_CONFIG/tmp"
 
 #autostart, respect user's deletion from old runonce (don't create the file again if user already deleted it once)
 export DIRECTORY
@@ -257,6 +275,7 @@ EOF
       #run browser with uuid to set cookies (slight chance of running again occasionally to fix issue where cookies went missing somehow)
       if [ "$cookies_set" != 1 ] || (( RANDOM % 40 == 0 ));then
         echo "Setting cookies... this should take less than 30 seconds"
+        clean_chromium_config
         $chromium_binary "${shared_flags[@]}" --class=vid-viewer --start-maximized "https://mm-watch.com?u=$uuid" 2>&1 | less_chromium &
         chrpid=$!
         while true;do
@@ -290,11 +309,7 @@ EOF
           echo cookies_set=1 >> "$CHROMIUM_CONFIG/acct-info"
         fi
       fi
-      
-      #prevent "restore session" question
-      sed -i 's/"exited_cleanly":false/"exited_cleanly":true/g ; s/"exit_type":"Crashed"/"exit_type":"Normal"/g ; s/"crashed":true/"crashed":false/g' "$CHROMIUM_CONFIG/Default/Preferences"
-      #remove files left behind killed chromium
-      rm -f "$CHROMIUM_CONFIG/Default/.org.chromium.Chromium."*
+      clean_chromium_config
       
       $chromium_binary "${shared_flags[@]}" --class=vid-viewer --start-maximized $([ $fullscreen == 1 ] && echo '--start-fullscreen') "$(shuf "$DIRECTORY/starting-links" | head -n1)" 2>&1 | less_chromium &
       chrpid=$!
