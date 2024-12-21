@@ -129,11 +129,12 @@ if [ -f /usr/lib/chromium/chromium ];then
   chromium_version="$(package_installed_version chromium | sed 's/.*://g ; s/-.*//g')"
   [ -z "$chromium_version" ] && error "chromium deb is installed, but failed to get a version for it!"
   chromium_binary=('/usr/lib/chromium/chromium')
+  chromium_style=binary
 elif [ -f /snap/bin/chromium ];then
   #snap version of chromium is installed (most likely ubuntu)
   chromium_version="$(snap info chromium | grep installed | awk '{print $2}')"
   [ -z "$chromium_version" ] && error "chromium snap is installed, but failed to get a version for it!"
-  chromium_binary=(/snap/bin/chromium)
+  chromium_style=snap
 else
   echo "chromium needs to be installed. trying to install it now..."
   sudo apt install -y chromium || error "install failed, exiting now"
@@ -311,8 +312,14 @@ EOF
       fi
       clean_chromium_config
       
-      $chromium_binary "${shared_flags[@]}" --class=vid-viewer --start-maximized $([ $fullscreen == 1 ] && echo '--start-fullscreen') "$(shuf "$DIRECTORY/starting-links" | head -n1)" 2>&1 | less_chromium &
-      chrpid=$!
+      chromium_flags=("${shared_flags[@]}" --class=vid-viewer --start-maximized $([ $fullscreen == 1 ] && echo '--start-fullscreen') "$(shuf "$DIRECTORY/starting-links" | head -n1)")
+      if [ "$chromium_style" == binary ];then
+        $chromium_binary "${chromium_flags[@]}" 2>&1 | less_chromium &
+        chrpid=$!
+      elif [ "$chromium_style" == snap ];then
+        snap run --shell chromium -c "chromium_flags=() ; IFS=$'\n' ; for i in "\""${chromium_flags[*]}"\"" ;do chromium_flags+=("\"\$"i"\"") ;done ; TMPDIR=${CHROMIUM_CONFIG}/tmp WAYLAND_DISPLAY=$WAYLAND_DISPLAY DISPLAY=$DISPLAY chromium.launcher "\$"{chromium_flags[@]}" 2>&1 | less_chromium &
+        chrpid=$!
+      fi
       
       #wait until chromium is running, then minimize it to reduce GPU usage
       if [ "$limit_fps" == 1 ];then
