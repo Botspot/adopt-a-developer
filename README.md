@@ -1,6 +1,9 @@
 # Support open source at no cost to you
 Adopt a Developer is a new, easy way to donate to open source software developers without needing to spend any money yourself. This watches video advertisements in a background web browser, and the revenue gets sent to your developer of choice.
-## Current status of the project: *ALPHA*
+## Current status of the project: *ON HOLD*
+
+> Message from Botspot: adopt-a-developer has encountered more backlash than I was expecting. While it has worked flawlessly from the technical side, and earning roughly $2 per day from just 4 or so active devices, for now I have decided to pause it to think through what to do next.
+
 While I have been working on this concept for several years, Adopt a Developer is **experimental** and needs a lot of work to be cross-platform and more importantly, *scalable*. Right now it takes an unreasonable amount of manual effort from developers who want to receive donations.  
 Current system requirements:
 - Recent Linux install based on Debian, most likely needs to be Debian version 12 (Bookworm) or newer to get a good version of `labwc`.

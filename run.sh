@@ -271,6 +271,12 @@ EOF
       sleep 1
     done
     
+    while true;do
+      echo -e 'Message from Botspot: adopt-a-developer has encountered more backlash than I was expecting. While it has worked flawlessly from the technical side, earning roughly $2 per day from just 4 or so active devices, for now I have decided to pause it to think through what to do next.'
+      sleep 60m
+      update_check
+    done
+    
     echo -e "Launching hidden browser to donate to the developer...\nLeave this running as much as you can."
     while true;do
       #run browser with uuid to set cookies (slight chance of running again occasionally to fix issue where cookies went missing somehow)
