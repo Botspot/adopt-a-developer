@@ -165,7 +165,7 @@ user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64; ) AppleWebKit/537.36 (KHTM
 shared_flags=(--user-agent="$user_agent" --user-data-dir="$CHROMIUM_CONFIG" --password-store=basic --disable-hang-monitor \
   --disable-gpu-program-cache --disable-gpu-shader-disk-cache --disk-cache-size=$((10*1024*1024)) --media-cache-size=$((10*1024*1024)) \
   --enable-features=UseOzonePlatform --ozone-platform=wayland --disable-gpu-process-crash-limit --video-threads=1 --disable-accelerated-video-decode --disable-gpu-compositing \
-  --num-raster-threads=1 --renderer-process-limit=1 --disable-low-res-tiling --mute-audio --no-first-run --enable-low-end-device-mode)
+  --num-raster-threads=1 --renderer-process-limit=1 --disable-low-res-tiling --mute-audio --no-first-run --enable-low-end-device-mode --enable-unsafe-swiftshader)
 #GPU video decode disabled for stability reasons
 #GPU compositing disabled to fix dmabuf errors on ubuntu with bad gpu drivers
 
