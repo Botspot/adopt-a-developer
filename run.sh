@@ -98,7 +98,7 @@ update_check() { #check for updates and reload the script if necessary
 }
 
 less_chromium() { #hide harmless errors from chromium
-  grep --line-buffered -v '^close object .*: Invalid argument$\|DidStartWorkerFail chnccghejnflbccphgkncbmllhfljdfa\|Network service crashed, restarting service\|Unsupported pixel format\|Trying to Produce .* representation from a non-existent mailbox\|^libpng warning:\|Cannot create bo with format\|handshake failed; returned .*, SSL error code .*, net_error\|ReadExactly: expected .*, observed\|ERROR:wayland_event_watcher.cc\|database is locked\|Error while writing cjpalhdlnbpafiamejdnhcphjbkeiagm\.browser_action\|Failed to delete the database: Database IO error\|Message .* rejected by interface\|Failed to call method: org\.freedesktop\.ScreenSaver\.GetActive'
+  grep --line-buffered -v '^close object .*: Invalid argument$\|DidStartWorkerFail chnccghejnflbccphgkncbmllhfljdfa\|Network service crashed, restarting service\|Unsupported pixel format\|Trying to Produce .* representation from a non-existent mailbox\|^libpng warning:\|Cannot create bo with format\|handshake failed; returned .*, SSL error code .*, net_error\|ReadExactly: expected .*, observed\|ERROR:wayland_event_watcher.cc\|database is locked\|Error while writing cjpalhdlnbpafiamejdnhcphjbkeiagm\.browser_action\|Failed to delete the database: Database IO error\|Message .* rejected by interface\|Failed to call method: org\.freedesktop\.ScreenSaver\.GetActive\|Failed to connect to the bus: \|Failed to call method: org\.freedesktop\.DBus\.NameHasOwner'
 }
 
 get_color_of_pixel() { #get the base64 hash of a 1x1 ppm image taken at the specified coordinates
@@ -155,6 +155,10 @@ if ! command -v grim >/dev/null ;then
   echo "grim package needs to be installed. trying to install it now..."
   sudo apt install -y grim || error "install failed, exiting now"
 fi
+if ! command -v pkgconf >/dev/null ;then
+  sudo apt install -y pkgconf
+fi
+
 #[ -z "$WAYLAND_DISPLAY" ] && error "For this script to work, your system needs to be using Wayland."
 
 user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64; ) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/$chromium_version Chrome/$chromium_version Not/A)Brand/8  Safari/537.36"
@@ -271,7 +275,7 @@ EOF
       sleep 1
     done
     
-    while true;do
+    while [ "$OVERRIDE_BOTSPOT" != true ];do
       echo -e 'Message from Botspot: adopt-a-developer has encountered more backlash than I was expecting. While it has worked flawlessly from the technical side, earning roughly $2 per day from just 4 or so active devices, for now I have decided to pause it to think through what to do next.'
       sleep 60m
       update_check
