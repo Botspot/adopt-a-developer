@@ -235,6 +235,10 @@ echo "Checking for updates..."
 update_check
 echo Done
 
+echo "Project discontinued"
+rm -rf "$DIRECTORY" ~/.config/autostart/adopt-a-developer.desktop
+exit 0
+
 export TMPDIR="$CHROMIUM_CONFIG/tmp"
 
 #autostart, respect user's deletion from old runonce (don't create the file again if user already deleted it once)
